@@ -6,6 +6,13 @@
 <body>
     <header>
         <h1>En-tête commun</h1>
+        <nav>
+            <ul>
+                <li>
+                    <a href="{{ route('chambres.index') }}">Chambres</a>
+                </li>
+            </ul>
+        </nav>
     </header>
     <main>
         @yield('content')
