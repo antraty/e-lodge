@@ -10,8 +10,10 @@ use App\Http\Controllers\ReservationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return redirect()->route('dashboard');
+    return view('welcome');
 });
+
+Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
  
 Route::get('/chambres/create', [ChambreController::class, 'create'])->name('chambres.create');
 Route::post('/chambres', [ChambreController::class, 'store'])->name('chambres.store');
