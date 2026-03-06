@@ -10,10 +10,39 @@
     </a>
 </div>
 
+<div class="mb-3">
+    <form method="GET" action="{{ route('chambres.index') }}" class="d-flex gap-2">
+        <input type="text" name="search" class="form-control" placeholder="Rechercher par numéro de chambre" value="{{ request('search') }}">
+        <select name="sort_by" class="form-select">
+            <option value="">Trier par...</option>
+            <option value="type" {{ request('sort_by') == 'type' ? 'selected' : '' }}>Type</option>
+            <option value="status" {{ request('sort_by') == 'status' ? 'selected' : '' }}>Statut</option>
+        </select>
+        <select name="sort_dir" class="form-select">
+            <option value="asc" {{ request('sort_dir') == 'asc' ? 'selected' : '' }}>Ascendant</option>
+            <option value="desc" {{ request('sort_dir') == 'desc' ? 'selected' : '' }}>Descendant</option>
+        </select>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Appliquer</button>
+    </form>
+</div>
+
+@if(request('search') && $chambres->count() == 1)
+    @php $chambre = $chambres->first(); @endphp
+    <div class="alert {{ $chambre->status == 'libre' ? 'alert-success' : 'alert-danger' }} mb-4">
+        <i class="fas fa-info-circle"></i> La chambre {{ $chambre->numero }} est {{ ucfirst($chambre->status) }}.
+    </div>
+@endif
+
 @if($chambres->isEmpty())
     <div class="alert alert-info text-center">
         <i class="fas fa-info-circle"></i>
-        <div>Aucune chambre. <a href="{{ route('chambres.create') }}">Cliquez ici</a></div>
+        <div>
+            @if(request('search'))
+                Aucune chambre trouvée pour "{{ request('search') }}".
+            @else
+                Aucune chambre. <a href="{{ route('chambres.create') }}">Cliquez ici</a>
+            @endif
+        </div>
     </div>
 @else
     <div class="table-responsive">

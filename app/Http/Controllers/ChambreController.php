@@ -32,9 +32,22 @@ class ChambreController extends Controller
         return redirect()->route('chambres.create');
     }
 
-    // Affiche la liste des chambres.
-    public function index(){
-        $chambres = \App\Models\Chambre::all();
+    // Affiche la liste des chambres avec tri et recherche.
+    public function index(Request $request){
+        $query = Chambre::query();
+
+        if ($search = $request->search) {
+            $query->where('numero', 'like', "%{$search}%");
+        }
+
+        if ($sort_by = $request->sort_by) {
+            $sort_dir = $request->sort_dir ?? 'asc';
+            if (in_array($sort_by, ['type', 'status'])) {
+                $query->orderBy($sort_by, $sort_dir);
+            }
+        }
+
+        $chambres = $query->get();
         return view('chambres.index', compact('chambres'));
     }
 
