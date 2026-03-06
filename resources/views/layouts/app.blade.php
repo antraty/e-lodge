@@ -9,26 +9,81 @@
     @yield('extra-css')
 </head>
 <body>
-    <header>
-        <div class="container-custom">
-            <div class="row align-items-center">
-                <div class="col-md-6">
-                    <h1><i class="fas fa-hotel"></i>E-Lodge</h1>
-                </div>
-                <div class="col-md-6">
-                    <nav>
-                        <ul>
-                            <li><a href="{{ route('dashboard') }}"><i class="fas fa-chart-line"></i>Tableau de bord</a></li>
-                            <li><a href="{{ route('chambres.index') }}"><i class="fas fa-door-open"></i>Chambres</a></li>
-                            <li><a href="{{ route('clients.index') }}"><i class="fas fa-users"></i>Clients</a></li>
-                            <li><a href="{{ route('reservations.index') }}"><i class="fas fa-calendar"></i>Réservations</a></li>
-                            <li><a href="{{ route('paiements.index') }}"><i class="fas fa-credit-card"></i>Paiements</a></li>
-                        </ul>
-                    </nav>
+    @if(auth()->check())
+        <header>
+            <div class="container-custom">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h1>
+                            <a href="{{ route('welcome') }}" style="color: white; text-decoration: none; display: flex; align-items: center; gap: 0.5rem;">
+                                <i class="fas fa-hotel"></i>E-Lodge
+                            </a>
+                        </h1>
+                    </div>
+                    <div class="col-md-6">
+                        <nav>
+                            <ul>
+                                <li><a href="{{ route('welcome') }}"><i class="fas fa-home"></i> Accueil</a></li>
+                                <li><a href="{{ route('dashboard') }}"><i class="fas fa-chart-line"></i> Tableau de bord</a></li>
+                                <li><a href="{{ route('chambres.index') }}"><i class="fas fa-door-open"></i> Chambres</a></li>
+                                <li><a href="{{ route('clients.index') }}"><i class="fas fa-users"></i> Clients</a></li>
+                                <li><a href="{{ route('reservations.index') }}"><i class="fas fa-calendar"></i> Réservations</a></li>
+                                <li><a href="{{ route('paiements.index') }}"><i class="fas fa-credit-card"></i> Paiements</a></li>
+                                <li>
+                                    <div class="dropdown-nav">
+                                        <a href="javascript:void(0);" onclick="toggleDropdown(event)">
+                                            <i class="fas fa-user-circle"></i> {{ auth()->user()->name }}
+                                            <i class="fas fa-chevron-down" style="font-size: 0.8rem; margin-left: 0.3rem;"></i>
+                                        </a>
+                                        <div id="dropdownMenu" class="dropdown-menu">
+                                            <a href="{{ route('profile') }}">
+                                                <i class="fas fa-user"></i> Mon Profil
+                                            </a>
+                                            <form id="logoutForm" action="{{ route('logout') }}" method="POST">
+                                                @csrf
+                                                <button type="submit" class="dropdown-btn">
+                                                    <i class="fas fa-sign-out-alt"></i> Déconnexion
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
                 </div>
             </div>
-        </div>
-    </header>
+        </header>
+
+        <script>
+            function toggleDropdown(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                const menu = document.getElementById('dropdownMenu');
+                menu.classList.toggle('show');
+            }
+
+            document.addEventListener('click', function(event) {
+                const dropdown = document.querySelector('.dropdown-nav');
+                const menu = document.getElementById('dropdownMenu');
+                if (dropdown && !dropdown.contains(event.target)) {
+                    menu.classList.remove('show');
+                }
+            });
+        </script>
+    @else
+        <header>
+            <div class="container-custom">
+                <div class="row align-items-center">
+                    <div class="col-md-12">
+                        <h1>
+                            <i class="fas fa-hotel"></i>E-Lodge
+                        </h1>
+                    </div>
+                </div>
+            </div>
+        </header>
+    @endif
 
     <main>
         <div class="container-custom">

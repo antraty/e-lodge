@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BonjourController;
 use App\Http\Controllers\ChambreController;
 use App\Http\Controllers\ClientController;
@@ -9,9 +10,29 @@ use App\Http\Controllers\PaiementController;
 use App\Http\Controllers\ReservationController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
+
+// Routes d'authentification (PUBLIQUES)
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
+    Route::post('/register', [AuthController::class, 'register']);
 });
+
+// Routes protégées (PRIVÉES)
+Route::middleware('auth')->group(function () {
+    // Déconnexion
+    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+    
+    // Profil utilisateur
+    Route::get('/profile', [AuthController::class, 'profile'])->name('profile');
+    Route::put('/profile', [AuthController::class, 'updateProfile'])->name('profile.update');
+    Route::put('/profile/password', [AuthController::class, 'changePassword'])->name('password.update');
+
+
+ Route::get('/', function () {
+        return view('welcome');
+    })->name('welcome');
 
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
  
@@ -51,5 +72,4 @@ Route::delete('/paiements/{id}', [PaiementController::class, 'destroy'])->name('
 Route::post('/factures/generer/{reservation}', [FactureController::class, 'generer'])->name('factures.generer');
 Route::get('/factures/{facture}', [FactureController::class, 'show'])->name('factures.show');
 
-// Route dashboard
-Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+});
