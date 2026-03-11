@@ -1,53 +1,64 @@
 <?php
 
-use App\Http\Controllers\BonjourController;
-use App\Http\Controllers\ChambreController;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\FactureController;
-use App\Http\Controllers\PaiementController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ReservationController;
+use App\Http\Controllers\SettingController;
+use App\Http\Controllers\LogController;
 use Illuminate\Support\Facades\Route;
 
+// Route accueil
 Route::get('/', function () {
     return redirect()->route('dashboard');
 });
- 
-Route::get('/chambres/create', [ChambreController::class, 'create'])->name('chambres.create');
-Route::post('/chambres', [ChambreController::class, 'store'])->name('chambres.store');
-Route::get('/chambres', [ChambreController::class, 'index'])->name('chambres.index');
-Route::get('/chambres/{chambre}/edit', [ChambreController::class, 'edit'])->name('chambres.edit');
-Route::put('/chambres/{chambre}', [ChambreController::class, 'update'])->name('chambres.update');
-Route::delete('/chambres/{chambre}', [ChambreController::class, 'destroy'])->name('chambres.destroy');
 
-// Routes Clients
-Route::get('/clients/create', [ClientController::class, 'create'])->name('clients.create');
-Route::post('/clients', [ClientController::class, 'store'])->name('clients.store');
-Route::get('/clients', [ClientController::class, 'index'])->name('clients.index');
-Route::get('/clients/{client}/edit', [ClientController::class, 'edit'])->name('clients.edit');
-Route::put('/clients/{client}', [ClientController::class, 'update'])->name('clients.update');
-Route::delete('/clients/{client}', [ClientController::class, 'destroy'])->name('clients.destroy');
+// Routes d'authentification (administrateur)
+Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login')->middleware('guest');
+Route::post('/login', [AuthController::class, 'login'])->middleware('guest');
 
-// Routes Reservations
-Route::get('/reservations/create', [ReservationController::class, 'create'])->name('reservations.create');
-Route::post('/reservations', [ReservationController::class, 'store'])->name('reservations.store');
-Route::get('/reservations', [ReservationController::class, 'index'])->name('reservations.index');
-Route::get('/reservations/{reservation}/edit', [ReservationController::class, 'edit'])->name('reservations.edit');
-Route::put('/reservations/{reservation}', [ReservationController::class, 'update'])->name('reservations.update');
-Route::delete('/reservations/{reservation}', [ReservationController::class, 'destroy'])->name('reservations.destroy');
+// Routes protégées (authentifiées)
+Route::middleware('auth')->group(function () {
+    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+    Route::get('/admin/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    
+    // Gestion des chambres
+    Route::resource('rooms', App\Http\Controllers\RoomController::class)->except(['show']);
+    Route::post('rooms/check-availability', [App\Http\Controllers\RoomController::class, 'checkAvailability'])->name('rooms.checkAvailability');
+    
+    
+    // API de recherche
+    Route::get('api/clients/search', [ClientController::class, 'search'])
+        ->name('clients.search');
+    
+        // Gestion des clients
+    Route::resource('clients', App\Http\Controllers\ClientController::class)->except(['show']);
+    
+    
+    // Gestion des réservations
+    // history route must be declared BEFORE the resource so /reservations/history is not captured by {reservation}
+    Route::get('reservations/history', [App\Http\Controllers\ReservationController::class, 'history'])->name('reservations.history');
+    Route::resource('reservations', App\Http\Controllers\ReservationController::class)->whereNumber('reservation');
+    // Invoice PDF for reservation
+    Route::get('reservations/{reservation}/invoice', [App\Http\Controllers\ReservationController::class, 'invoice'])->name('reservations.invoice');
+    
+    // Gestion des paiements
+    // history route must be declared before the resource so that /payments/history
+    // is not captured by the {payment} wildcard of the resource show route.
+    Route::get('payments/history', [PaymentController::class, 'history'])->name('payments.history');
+    Route::resource('payments', PaymentController::class)
+        ->only(['index','create','store','show','destroy'])
+        ->whereNumber('payment');
 
-
-// Paiements et facturation
-Route::get('/paiements/create', [PaiementController::class, 'create'])->name('paiements.create');
-Route::post('/paiements/store', [PaiementController::class, 'store'])->name('paiements.store');
-Route::get('/paiements', [PaiementController::class, 'index'])->name('paiements.index');
-Route::get('/paiements/{id}/edit', [PaiementController::class, 'edit'])->name('paiements.edit');
-Route::put('/paiements/{id}', [PaiementController::class, 'update'])->name('paiements.update');
-Route::delete('/paiements/{id}', [PaiementController::class, 'destroy'])->name('paiements.destroy');
-
-// Routes factures
-Route::post('/factures/generer/{reservation}', [FactureController::class, 'generer'])->name('factures.generer');
-Route::get('/factures/{facture}', [FactureController::class, 'show'])->name('factures.show');
-
-// Route dashboard
-Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Gestion des comptes utilisateurs
+    Route::resource('users', App\Http\Controllers\UserController::class)->except(['show']);
+    
+    // Paramètres
+    Route::get('settings', [SettingController::class, 'index'])->name('settings.index');
+    Route::post('settings', [SettingController::class, 'store'])->name('settings.store');
+    
+    // Logs
+    Route::get('logs', [LogController::class, 'index'])->name('logs.index');
+    Route::get('logs/{log}', [LogController::class, 'show'])->name('logs.show');
+});

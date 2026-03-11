@@ -1,37 +1,43 @@
 @extends('layouts.app')
 
 @section('content')
-    <h2>Liste des réservations</h2>
-    <a href="{{ route('reservations.create') }}">Nouvelle réservation</a>
-    <table>
-        <tr>
-            <th>Client</th>
-            <th>Chambre</th>
-            <th>Date d'arrivée</th>
-            <th>Date de départ</th>
-            <th>Status</th>
-            <th>Actions</th>
-        </tr>
-        @foreach($reservations as $reservation)
-        <tr>
-            <td>{{ $reservation->client->nom }} {{ $reservation->client->prenom }}</td>
-            <td>{{ $reservation->chambre->numero }}</td>
-            <td>{{ $reservation->date_debut }}</td>
-            <td>{{ $reservation->date_fin }}</td>
-            <td>{{ $reservation->status }}</td>
-            <td>
-                <a href="{{ route('reservations.edit', $reservation->id) }}">Modifier</a>
-                <form action="{{ route('factures.generer', $reservation->id) }}" method="POST" style="display:inline;">
-                    @csrf
-                    <button type="submit">Générer la facture</button>
-                </form>
-                <form action="{{ route('reservations.destroy', $reservation->id) }}" method="POST" style="display:inline;">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" onclick="return confirm('Annuler cette réservation ?')">Annuler</button>
-                </form>
-            </td>
-        </tr>
-        @endforeach
+<div class="container">
+    <h1>Réservations</h1>
+    <a href="{{ route('reservations.create') }}" class="btn btn-primary">Nouvelle réservation</a>
+    <a href="{{ route('reservations.history') }}" class="btn btn-secondary ms-2">Voir l'historique</a>
+    @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
+
+    <table class="table mt-3">
+        <thead>
+            <tr>
+                <th>Client</th>
+                <th>Chambre</th>
+                <th>Arrivée</th>
+                <th>Départ</th>
+                <th>Statut</th>
+                <th>Montant</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($reservations as $res)
+            <tr>
+                <td>{{ $res->client->first_name }} {{ $res->client->last_name }}</td>
+                <td>{{ $res->room->room_number }} ({{ ucfirst($res->room->type) }})</td>
+                <td>{{ $res->check_in }}</td>
+                <td>{{ $res->check_out }}</td>
+                <td>{{ ucfirst($res->status) }}</td>
+                <td>{{ number_format($res->total_price,2) }} MGA</td>
+                <td>
+                    <a href="{{ route('reservations.show', $res) }}" class="btn btn-sm btn-info">Voir</a>
+                    <a href="{{ route('reservations.edit', $res) }}" class="btn btn-sm btn-secondary">Modifier</a>
+                    <a href="{{ route('payments.create', ['reservation_id' => $res->id]) }}" class="btn btn-sm btn-success">Enregistrer un paiement</a>
+                    <form action="{{ route('reservations.destroy', $res) }}" method="POST" style="display:inline-block;">@csrf @method('DELETE')<button class="btn btn-sm btn-danger">Annuler</button></form>
+                </td>
+            </tr>
+            @endforeach
+        </tbody>
     </table>
+    {{ $reservations->links() }}
+</div>
 @endsection

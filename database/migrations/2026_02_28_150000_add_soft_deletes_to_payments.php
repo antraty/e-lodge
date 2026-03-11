@@ -11,13 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('chambres', function (Blueprint $table) {
-            $table->id();
-            $table->integer('numero');
-            $table->string('type');
-            $table->string('status');
-            $table->float('prix');
-            $table->timestamps();
+        Schema::table('payments', function (Blueprint $table) {
+            $table->softDeletes();
         });
     }
 
@@ -26,6 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('chambres');
+        Schema::table('payments', function (Blueprint $table) {
+            $table->dropSoftDeletes();
+        });
     }
 };
