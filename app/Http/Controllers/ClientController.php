@@ -95,6 +95,44 @@ class ClientController extends Controller
         return redirect()->route('clients.index')->with('success', 'Client supprimé.');
     }
 
+    /**
+     * API — réservations d'un client (pour le modal)
+     */
+    public function reservations(Client $client)
+    {
+        $statusLabels = [
+            'confirmed'   => 'Confirmée',
+            'pending'     => 'En attente',
+            'checked_in'  => 'Checked in',
+            'checked_out' => 'Checked out',
+            'cancelled'   => 'Annulée',
+            'paid'        => 'Payée',
+            'partial'     => 'Partiel',
+        ];
+
+        $reservations = $client->reservations()
+            ->with('room')
+            ->orderByDesc('check_in')
+            ->get()
+            ->map(function ($res) use ($statusLabels) {
+                return [
+                    'id'          => $res->id,
+                    'room_number' => $res->room->room_number ?? '—',
+                    'room_type'   => ucfirst($res->room->type ?? ''),
+                    'check_in'    => \Carbon\Carbon::parse($res->check_in)->format('d/m/Y'),
+                    'check_out'   => \Carbon\Carbon::parse($res->check_out)->format('d/m/Y'),
+                    'status'      => $res->status,
+                    'status_label'=> $statusLabels[$res->status] ?? ucfirst($res->status),
+                    'total_price' => number_format($res->total_price, 0, ',', ' '),
+                ];
+            });
+
+        return response()->json($reservations);
+    }
+
+    /**
+     * API — recherche Select2
+     */
     public function search(Request $request)
     {
         $term = $request->get('q', '');
@@ -110,12 +148,10 @@ class ClientController extends Controller
         ->get(['id', 'first_name', 'last_name', 'email', 'phone']);
 
         return response()->json([
-            'results' => $clients->map(function ($client) {
-                return [
-                    'id'   => $client->id,
-                    'text' => "{$client->first_name} {$client->last_name} - {$client->email}",
-                ];
-            })
+            'results' => $clients->map(fn($c) => [
+                'id'   => $c->id,
+                'text' => "{$c->first_name} {$c->last_name} - {$c->email}",
+            ])
         ]);
     }
 }
