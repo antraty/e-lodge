@@ -64,9 +64,9 @@ class ReservationController extends Controller
     public function create()
     {
         $clients = Client::orderBy('last_name')->get();
-        $rooms   = Room::whereIn('status', ['available', 'reserved'])
-                       ->orderBy('room_number')
-                       ->get();
+        $rooms = Room::whereIn('status', ['available', 'reserved'])
+                    ->orderByRaw('CAST(room_number AS UNSIGNED)')
+                    ->get();
         return view('reservations.create', compact('clients', 'rooms'));
     }
 
@@ -119,7 +119,7 @@ class ReservationController extends Controller
     public function edit(Reservation $reservation)
     {
         $clients = Client::orderBy('last_name')->get();
-        $rooms   = Room::orderBy('room_number')->get();
+        $rooms   = Room::orderByRaw('CAST(room_number AS UNSIGNED)')->get();
         return view('reservations.edit', compact('reservation', 'clients', 'rooms'));
     }
 

@@ -10,10 +10,10 @@ class RoomController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Room::orderBy('room_number');
+        $query = Room::orderByRaw('LENGTH(room_number), room_number');
 
         if ($search = $request->input('search')) {
-            $query->where('room_number', 'like', '%' . $search . '%');
+            $query->where('LENGTH(room_number), room_number', 'like', '%' . $search . '%');
         }
         if ($type = $request->input('type')) {
             $query->where('type', $type);
