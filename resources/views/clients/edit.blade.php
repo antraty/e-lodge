@@ -3,51 +3,20 @@
 @section('title', 'Modifier client - E-Lodge')
 
 @section('content')
-<div class="row">
-    <div style="grid-column: span 1; max-width: 500px;">
-        <div class="card">
-            <div class="card-body">
-                <h2 class="mb-3"><i class="fas fa-user-edit"></i> Modifier Client</h2>
-
-                <form action="{{ route('clients.update', $client->id) }}" method="POST">
-                    @csrf
-                    @method('PUT')
-
-                    <div class="form-group">
-                        <label><i class="fas fa-user"></i> Nom *</label>
-                        <input type="text" name="nom" value="{{ old('nom', $client->nom) }}" required>
-                        @error('nom')<div class="text-danger">{{ $message }}</div>@enderror
-                    </div>
-
-                    <div class="form-group">
-                        <label><i class="fas fa-user"></i> Prénom *</label>
-                        <input type="text" name="prenom" value="{{ old('prenom', $client->prenom) }}" required>
-                        @error('prenom')<div class="text-danger">{{ $message }}</div>@enderror
-                    </div>
-
-                    <div class="form-group">
-                        <label><i class="fas fa-phone"></i> Téléphone *</label>
-                        <input type="text" name="telephone" value="{{ old('telephone', $client->telephone) }}" required>
-                        @error('telephone')<div class="text-danger">{{ $message }}</div>@enderror
-                    </div>
-
-                    <div class="form-group">
-                        <label><i class="fas fa-map-marker-alt"></i> Adresse *</label>
-                        <textarea name="adresse" required>{{ old('adresse', $client->adresse) }}</textarea>
-                        @error('adresse')<div class="text-danger">{{ $message }}</div>@enderror
-                    </div>
-
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-secondary flex-grow-1">
-                            <i class="fas fa-save"></i> Mettre à jour
-                        </button>
-                        <a href="{{ route('clients.index') }}" class="btn btn-outline flex-grow-1">
-                            <i class="fas fa-times"></i> Annuler
-                        </a>
-                    </div>
-                </form>
-            </div>
+<div class="container">
+    <h1>Modifier client</h1>
+    @if($errors->any())<div class="alert alert-danger"><ul>@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>@endif
+    <form action="{{ route('clients.update', $client) }}" method="POST">@csrf @method('PUT')
+        <div class="mb-3"><label>Prénom</label><input name="first_name" class="form-control" value="{{ old('first_name', $client->first_name) }}" required></div>
+        <div class="mb-3"><label>Nom</label><input name="last_name" class="form-control" value="{{ old('last_name', $client->last_name) }}" required></div>
+        <div class="mb-3"><label>Email</label><input name="email" type="email" class="form-control" value="{{ old('email', $client->email) }}" required></div>
+        <div class="mb-3"><label>Téléphone</label>
+            <input name="phone" type="tel" class="form-control" value="{{ old('phone', $client->phone) }}" placeholder="+261 34 12 345 67" pattern="^\+261 3[0-9] [0-9]{2} [0-9]{3} [0-9]{2}$">
+            <div class="form-text">Format requis: <code>+261 3X XX XXX XX</code> (ex: +261 34 12 345 67)</div>
         </div>
-    </div>
+        <div class="mb-3"><label>Adresse</label><input name="address" class="form-control" value="{{ old('address', $client->address) }}"></div>
+        <button class="btn btn-primary">Mettre à jour</button>
+        <a href="{{ route('clients.index') }}" class="btn btn-secondary">Annuler</a>
+    </form>
 </div>
 @endsection

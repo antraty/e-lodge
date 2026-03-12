@@ -2,24 +2,35 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Reservation extends Model
 {
-    use HasFactory;
+    use SoftDeletes;
     protected $fillable = [
-        'date_debut',
-        'date_fin',
-        'status',
-        'chambre_id',
         'client_id',
+        'room_id',
+        'check_in',
+        'check_out',
+        'status',
+        'number_of_guests',
+        'total_price',
+        'special_requests',
     ];
 
-    public function client() { 
-        return $this->belongsTo(\App\Models\Client::class); 
+    public function room()
+    {
+        return $this->belongsTo(Room::class);
     }
-    public function chambre() { 
-        return $this->belongsTo(\App\Models\Chambre::class); 
+
+    public function client()
+    {
+        return $this->belongsTo(Client::class);
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
     }
 }

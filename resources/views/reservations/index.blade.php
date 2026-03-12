@@ -3,68 +3,43 @@
 @section('title', 'Réservations - E-Lodge')
 
 @section('content')
-<div class="d-flex justify-content-between mb-4">
-    <h2><i class="fas fa-calendar"></i> Réservations</h2>
-    <a href="{{ route('reservations.create') }}" class="btn btn-secondary">
-        <i class="fas fa-plus"></i> Nouvelle
-    </a>
-</div>
+<div class="container">
+    <h1>Réservations</h1>
+    <a href="{{ route('reservations.create') }}" class="btn btn-primary">Nouvelle réservation</a>
+    <a href="{{ route('reservations.history') }}" class="btn btn-secondary ms-2">Voir l'historique</a>
+    @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
 
-@if($reservations->isEmpty())
-    <div class="alert alert-info text-center">
-        <i class="fas fa-info-circle"></i>
-        <div>Aucune réservation. <a href="{{ route('reservations.create') }}">Cliquez ici</a></div>
-    </div>
-@else
-    <div class="table-responsive">
-        <table>
-            <thead>
-                <tr>
-                    <th><i class="fas fa-user"></i> Client</th>
-                    <th><i class="fas fa-door-open"></i> Chambre</th>
-                    <th><i class="fas fa-calendar-plus"></i> Arrivée</th>
-                    <th><i class="fas fa-calendar-minus"></i> Départ</th>
-                    <th><i class="fas fa-info-circle"></i> Statut</th>
-                    <th><i class="fas fa-cog"></i> Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($reservations as $reservation)
-                <tr>
-                    <td><strong>{{ $reservation->client->nom }} {{ $reservation->client->prenom }}</strong></td>
-                    <td>#{{ $reservation->chambre->numero }}</td>
-                    <td>{{ \Carbon\Carbon::parse($reservation->date_debut)->format('d/m/Y') }}</td>
-                    <td>{{ \Carbon\Carbon::parse($reservation->date_fin)->format('d/m/Y') }}</td>
-                    <td>
-                        <span class="badge {{ $reservation->status == 'confirmée' ? 'bg-success' : ($reservation->status == 'annulée' ? 'bg-danger' : 'bg-warning') }}">
-                            {{ ucfirst($reservation->status) }}
-                        </span>
-                    </td>
-                    <td>
-                        <div class="action-links">
-                            <a href="{{ route('reservations.edit', $reservation->id) }}" class="btn btn-primary btn-sm">
-                                <i class="fas fa-edit"></i> Modifier
-                            </a>
-                            <form action="{{ route('factures.generer', $reservation->id) }}" method="POST">
-                                @csrf
-                                <button type="submit" class="btn btn-warning btn-sm">
-                                    <i class="fas fa-file-invoice"></i> Facture
-                                </button>
-                            </form>
-                            <form action="{{ route('reservations.destroy', $reservation->id) }}" method="POST">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-danger btn-sm" 
-                                    onclick="return confirm('Confirmer ?')">
-                                    <i class="fas fa-trash"></i> Annuler
-                                </button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </div>
-@endif
+    <table class="table mt-3">
+        <thead>
+            <tr>
+                <th>Client</th>
+                <th>Chambre</th>
+                <th>Arrivée</th>
+                <th>Départ</th>
+                <th>Statut</th>
+                <th>Montant</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($reservations as $res)
+            <tr>
+                <td>{{ $res->client->first_name }} {{ $res->client->last_name }}</td>
+                <td>{{ $res->room->room_number }} ({{ ucfirst($res->room->type) }})</td>
+                <td>{{ $res->check_in }}</td>
+                <td>{{ $res->check_out }}</td>
+                <td>{{ ucfirst($res->status) }}</td>
+                <td>{{ number_format($res->total_price,2) }} MGA</td>
+                <td>
+                    <a href="{{ route('reservations.show', $res) }}" class="btn btn-sm btn-info">Voir</a>
+                    <a href="{{ route('reservations.edit', $res) }}" class="btn btn-sm btn-secondary">Modifier</a>
+                    <a href="{{ route('payments.create', ['reservation_id' => $res->id]) }}" class="btn btn-sm btn-success">Enregistrer un paiement</a>
+                    <form action="{{ route('reservations.destroy', $res) }}" method="POST" style="display:inline-block;">@csrf @method('DELETE')<button class="btn btn-sm btn-danger">Annuler</button></form>
+                </td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+    {{ $reservations->links() }}
+</div>
 @endsection

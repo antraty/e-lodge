@@ -3,54 +3,107 @@
 @section('title', 'Clients - E-Lodge')
 
 @section('content')
-<div class="d-flex justify-content-between mb-4">
-    <h2><i class="fas fa-users"></i> Clients</h2>
-    <a href="{{ route('clients.create') }}" class="btn btn-secondary">
-        <i class="fas fa-plus"></i> Nouveau
-    </a>
-</div>
+<div class="container py-4">
 
-@if($clients->isEmpty())
-    <div class="alert alert-info text-center">
-        <i class="fas fa-info-circle"></i>
-        <div>Aucun client. <a href="{{ route('clients.create') }}">Cliquez ici</a></div>
+    {{-- En-tête --}}
+    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-0">Clients</h2>
+            <small class="text-muted">
+                {{ $clients->total() }} client{{ $clients->total() > 1 ? 's' : '' }}
+                @if(request('search'))
+                    &mdash; résultats pour « {{ request('search') }} »
+                @endif
+            </small>
+        </div>
+        <a href="{{ route('clients.create') }}" class="btn btn-primary">
+            <i class="bi bi-person-plus me-1"></i> Ajouter un client
+        </a>
     </div>
-@else
-    <div class="table-responsive">
-        <table>
-            <thead>
-                <tr>
-                    <th><i class="fas fa-user"></i> Nom</th>
-                    <th><i class="fas fa-phone"></i> Téléphone</th>
-                    <th><i class="fas fa-map-marker-alt"></i> Adresse</th>
-                    <th><i class="fas fa-cog"></i> Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($clients as $client)
-                <tr>
-                    <td><strong>{{ $client->nom }} {{ $client->prenom }}</strong></td>
-                    <td>{{ $client->telephone }}</td>
-                    <td>{{ $client->adresse }}</td>
-                    <td>
-                        <div class="action-links">
-                            <a href="{{ route('clients.edit', $client->id) }}" class="btn btn-primary btn-sm">
-                                <i class="fas fa-edit"></i> Modifier
+
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    @endif
+
+    {{-- Recherche --}}
+    <form method="GET" action="{{ route('clients.index') }}" class="row g-2 mb-3">
+        <div class="col-sm-5">
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" name="search" class="form-control"
+                       placeholder="Nom, prénom, email, téléphone…"
+                       value="{{ request('search') }}" autocomplete="off">
+                @if(request('search'))
+                    <a href="{{ route('clients.index') }}" class="btn btn-outline-secondary" title="Effacer">
+                        <i class="bi bi-x-lg"></i>
+                    </a>
+                @endif
+            </div>
+        </div>
+        <div class="col-sm-auto">
+            <button type="submit" class="btn btn-outline-primary">
+                <i class="bi bi-funnel me-1"></i> Rechercher
+            </button>
+        </div>
+    </form>
+
+    {{-- Tableau --}}
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Nom</th>
+                        <th>Email</th>
+                        <th>Téléphone</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($clients as $client)
+                    <tr>
+                        <td class="fw-semibold">{{ $client->first_name }} {{ $client->last_name }}</td>
+                        <td>{{ $client->email }}</td>
+                        <td>{{ $client->phone ?? '—' }}</td>
+                        <td>
+                            <a href="{{ route('clients.edit', $client) }}" class="btn btn-sm btn-outline-primary me-1">
+                                <i class="bi bi-pencil"></i> Modifier
                             </a>
-                            <form action="{{ route('clients.destroy', $client->id) }}" method="POST">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-danger btn-sm" 
-                                    onclick="return confirm('Confirmer ?')">
-                                    <i class="fas fa-trash"></i> Supprimer
+                            <form action="{{ route('clients.destroy', $client) }}" method="POST" class="d-inline"
+                                  onsubmit="return confirm('Supprimer {{ $client->first_name }} {{ $client->last_name }} ?')">
+                                @csrf @method('DELETE')
+                                <button class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash"></i> Supprimer
                                 </button>
                             </form>
-                        </div>
-                    </td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-5">
+                            <i class="bi bi-person-x fs-2 d-block mb-2 opacity-25"></i>
+                            Aucun client ne correspond à votre recherche.
+                            <a href="{{ route('clients.index') }}" class="d-block mt-2">Réinitialiser</a>
+                        </td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
     </div>
-@endif
+
+    {{-- Pagination --}}
+    @if($clients->hasPages())
+    <div class="d-flex align-items-center justify-content-between mt-3 flex-wrap gap-2">
+        <small class="text-muted">
+            Affichage {{ $clients->firstItem() }}–{{ $clients->lastItem() }} sur {{ $clients->total() }}
+        </small>
+        {{ $clients->withQueryString()->links('pagination::bootstrap-5') }}
+    </div>
+    @endif
+
+</div>
 @endsection
