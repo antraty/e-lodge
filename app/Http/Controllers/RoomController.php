@@ -9,9 +9,27 @@ use Illuminate\Http\Request;
 
 class RoomController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $rooms = Room::orderBy('room_number')->paginate(15);
+        $query = Room::orderBy('room_number');
+
+        // Recherche par numéro
+        if ($search = $request->input('search')) {
+            $query->where('room_number', 'like', '%' . $search . '%');
+        }
+
+        // Filtre par type
+        if ($type = $request->input('type')) {
+            $query->where('type', $type);
+        }
+
+        // Filtre par statut
+        if ($status = $request->input('status')) {
+            $query->where('status', $status);
+        }
+
+        $rooms = $query->paginate(15)->withQueryString();
+
         return view('rooms.index', compact('rooms'));
     }
 
@@ -23,20 +41,20 @@ class RoomController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'room_number' => 'required|string|unique:rooms,room_number',
-            'type' => 'required|in:single,double,suite,deluxe',
-            'capacity' => 'required|integer|min:1',
-            'price_per_night' => 'required|numeric|min:0',
-            'status' => 'required|in:available,occupied,maintenance',
-            'description' => 'nullable|string',
+            'room_number'    => 'required|string|unique:rooms,room_number',
+            'type'           => 'required|in:single,double,suite,deluxe',
+            'capacity'       => 'required|integer|min:1',
+            'price_per_night'=> 'required|numeric|min:0',
+            'status'         => 'required|in:available,occupied,maintenance',
+            'description'    => 'nullable|string',
         ]);
 
         $room = Room::create($data);
 
         ActivityLog::create([
-            'user_id' => auth()->id(),
-            'action' => 'Création',
-            'description' => "Chambre #{$room->id} - {$room->room_number} ({$room->type})",
+            'user_id'    => auth()->id(),
+            'action'     => 'Création',
+            'description'=> "Chambre #{$room->id} - {$room->room_number} ({$room->type})",
             'ip_address' => request()->ip(),
         ]);
 
@@ -51,20 +69,20 @@ class RoomController extends Controller
     public function update(Request $request, Room $room)
     {
         $data = $request->validate([
-            'room_number' => 'required|string|unique:rooms,room_number,' . $room->id,
-            'type' => 'required|in:single,double,suite,deluxe',
-            'capacity' => 'required|integer|min:1',
-            'price_per_night' => 'required|numeric|min:0',
-            'status' => 'required|in:available,occupied,maintenance',
-            'description' => 'nullable|string',
+            'room_number'    => 'required|string|unique:rooms,room_number,' . $room->id,
+            'type'           => 'required|in:single,double,suite,deluxe',
+            'capacity'       => 'required|integer|min:1',
+            'price_per_night'=> 'required|numeric|min:0',
+            'status'         => 'required|in:available,occupied,maintenance',
+            'description'    => 'nullable|string',
         ]);
 
         $room->update($data);
 
         ActivityLog::create([
-            'user_id' => auth()->id(),
-            'action' => 'Mise à jour',
-            'description' => "Chambre #{$room->id} ({$room->room_number}) mise à jour",
+            'user_id'    => auth()->id(),
+            'action'     => 'Mise à jour',
+            'description'=> "Chambre #{$room->id} ({$room->room_number}) mise à jour",
             'ip_address' => request()->ip(),
         ]);
 
@@ -77,9 +95,9 @@ class RoomController extends Controller
         $room->delete();
 
         ActivityLog::create([
-            'user_id' => auth()->id(),
-            'action' => 'Suppression',
-            'description' => "Chambre #{$room->id} ({$roomNum}) supprimée",
+            'user_id'    => auth()->id(),
+            'action'     => 'Suppression',
+            'description'=> "Chambre #{$room->id} ({$roomNum}) supprimée",
             'ip_address' => request()->ip(),
         ]);
 
@@ -92,8 +110,8 @@ class RoomController extends Controller
     public function checkAvailability(Request $request)
     {
         $data = $request->validate([
-            'room_id' => 'required|exists:rooms,id',
-            'check_in' => 'required|date',
+            'room_id'   => 'required|exists:rooms,id',
+            'check_in'  => 'required|date',
             'check_out' => 'required|date|after:check_in',
         ]);
 
