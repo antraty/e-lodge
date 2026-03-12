@@ -16,7 +16,6 @@ class ReservationController extends Controller
     {
         $query = Reservation::with(['client', 'room'])->orderBy('check_in', 'desc');
 
-        // Recherche client (nom/prénom) ou numéro de chambre
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->whereHas('client', function ($q2) use ($search) {
@@ -28,12 +27,10 @@ class ReservationController extends Controller
             });
         }
 
-        // Filtre par statut
         if ($status = $request->input('status')) {
             $query->where('status', $status);
         }
 
-        // Filtre par date d'arrivée (plage)
         if ($from = $request->input('date_from')) {
             $query->where('check_in', '>=', $from);
         }
@@ -46,31 +43,31 @@ class ReservationController extends Controller
         return view('reservations.index', compact('reservations'));
     }
 
-    /**
-     * Show trashed (deleted) reservations for history.
-     */
     public function history()
     {
         $reservations = Reservation::withTrashed()
-            ->with(['client','room'])
+            ->with(['client', 'room'])
             ->where('status', 'cancelled')
             ->orWhereNotNull('deleted_at')
             ->orderByDesc('deleted_at')
             ->paginate(20);
+
         return view('reservations.history', compact('reservations'));
     }
 
     public function show(Reservation $reservation)
     {
-        $reservation->load('client','room');
+        $reservation->load('client', 'room');
         return view('reservations.show', compact('reservation'));
     }
 
     public function create()
     {
         $clients = Client::orderBy('last_name')->get();
-        $rooms   = Room::available()->get();
-        return view('reservations.create', compact('clients','rooms'));
+        $rooms   = Room::whereIn('status', ['available', 'reserved'])
+                       ->orderBy('room_number')
+                       ->get();
+        return view('reservations.create', compact('clients', 'rooms'));
     }
 
     public function store(Request $request)
@@ -84,10 +81,14 @@ class ReservationController extends Controller
             'special_requests' => 'nullable|string',
         ]);
 
+        // Vérifier conflit de dates
         $conflict = Reservation::where('room_id', $data['room_id'])
             ->where(function ($q) use ($data) {
-                $q->where('check_in', '<', $data['check_out'])->where('check_out', '>', $data['check_in']);
-            })->whereNotIn('status', ['cancelled','checked_out'])->exists();
+                $q->where('check_in', '<', $data['check_out'])
+                  ->where('check_out', '>', $data['check_in']);
+            })
+            ->whereNotIn('status', ['cancelled', 'checked_out'])
+            ->exists();
 
         if ($conflict) {
             return back()->withErrors(['room_id' => 'La chambre n\'est pas disponible pour ces dates.'])->withInput();
@@ -109,7 +110,8 @@ class ReservationController extends Controller
             'ip_address'  => request()->ip(),
         ]);
 
-        $this->updateRoomStatus($reservation->room_id);
+        // Synchroniser le statut de la chambre
+        $room->syncStatus();
 
         return redirect()->route('reservations.index')->with('success', 'Réservation créée.');
     }
@@ -118,7 +120,7 @@ class ReservationController extends Controller
     {
         $clients = Client::orderBy('last_name')->get();
         $rooms   = Room::orderBy('room_number')->get();
-        return view('reservations.edit', compact('reservation','clients','rooms'));
+        return view('reservations.edit', compact('reservation', 'clients', 'rooms'));
     }
 
     public function update(Request $request, Reservation $reservation)
@@ -136,17 +138,20 @@ class ReservationController extends Controller
         $conflict = Reservation::where('room_id', $data['room_id'])
             ->where('id', '!=', $reservation->id)
             ->where(function ($q) use ($data) {
-                $q->where('check_in', '<', $data['check_out'])->where('check_out', '>', $data['check_in']);
-            })->whereNotIn('status', ['cancelled','checked_out'])->exists();
+                $q->where('check_in', '<', $data['check_out'])
+                  ->where('check_out', '>', $data['check_in']);
+            })
+            ->whereNotIn('status', ['cancelled', 'checked_out'])
+            ->exists();
 
         if ($conflict) {
             return back()->withErrors(['room_id' => 'La chambre n\'est pas disponible pour ces dates.'])->withInput();
         }
 
-        $room       = Room::findOrFail($data['room_id']);
-        $nights     = (new \DateTime($data['check_out']))->diff(new \DateTime($data['check_in']))->days;
-        $total      = $nights * $room->price_per_night;
-        $oldRoomId  = $reservation->room_id;
+        $room      = Room::findOrFail($data['room_id']);
+        $nights    = (new \DateTime($data['check_out']))->diff(new \DateTime($data['check_in']))->days;
+        $total     = $nights * $room->price_per_night;
+        $oldRoomId = $reservation->room_id;
 
         $reservation->update(array_merge($data, ['total_price' => $total]));
 
@@ -157,19 +162,23 @@ class ReservationController extends Controller
             'ip_address'  => request()->ip(),
         ]);
 
+        // Resynchroniser l'ancienne chambre si elle a changé
         if ($oldRoomId != $reservation->room_id) {
-            $this->updateRoomStatus($oldRoomId);
+            $oldRoom = Room::find($oldRoomId);
+            $oldRoom?->syncStatus();
         }
-        $this->updateRoomStatus($reservation->room_id);
+
+        $room->syncStatus();
 
         return redirect()->route('reservations.index')->with('success', 'Réservation mise à jour.');
     }
 
     public function destroy(Request $request, Reservation $reservation)
     {
+        $room = Room::find($reservation->room_id);
+
         if ($reservation->status !== 'cancelled') {
             $reservation->update(['status' => 'cancelled']);
-            $this->updateRoomStatus($reservation->room_id);
 
             ActivityLog::create([
                 'user_id'     => Auth::id(),
@@ -179,12 +188,13 @@ class ReservationController extends Controller
             ]);
 
             $request->attributes->set('skip_log', true);
+            $room?->syncStatus();
 
-            return redirect()->route('reservations.index')->with('success', 'Réservation annulée. Appuyez à nouveau pour supprimer définitivement.');
+            return redirect()->route('reservations.index')
+                ->with('success', 'Réservation annulée. Appuyez à nouveau pour supprimer définitivement.');
         }
 
         $reservation->delete();
-        $this->updateRoomStatus($reservation->room_id);
 
         ActivityLog::create([
             'user_id'     => Auth::id(),
@@ -193,33 +203,15 @@ class ReservationController extends Controller
             'ip_address'  => $request->ip(),
         ]);
 
-        return redirect()->route('reservations.index')->with('success', 'Réservation supprimée. (historique conservé)');
-    }
+        $room?->syncStatus();
 
-    private function updateRoomStatus($roomId)
-    {
-        if (empty($roomId)) return;
-
-        $today  = date('Y-m-d');
-        $active = Reservation::where('room_id', $roomId)
-            ->whereNotIn('status', ['cancelled','checked_out'])
-            ->where('check_in',  '<=', $today)
-            ->where('check_out', '>',  $today)
-            ->exists();
-
-        $room = Room::find($roomId);
-        if (!$room) return;
-
-        if ($active) {
-            $room->update(['status' => 'occupied']);
-        } elseif ($room->status !== 'maintenance') {
-            $room->update(['status' => 'available']);
-        }
+        return redirect()->route('reservations.index')
+            ->with('success', 'Réservation supprimée. (historique conservé)');
     }
 
     public function invoice(Reservation $reservation)
     {
-        $reservation->load('client','room');
+        $reservation->load('client', 'room');
 
         if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class) || class_exists(DomPDFFacade::class)) {
             try {
