@@ -84,6 +84,26 @@
                 </thead>
                 <tbody>
                     @forelse($rooms as $room)
+                    @php
+                        $activeReservation = null;
+                        if (in_array($room->status, ['occupied', 'reserved'])) {
+                            $today = now()->toDateString();
+                            $activeReservation = $room->reservations()
+                                ->with('client')
+                                ->whereNotIn('status', ['cancelled', 'checked_out'])
+                                ->where(function($q) use ($today) {
+                                    // occupied: en cours aujourd'hui
+                                    $q->where(function($q2) use ($today) {
+                                        $q2->where('check_in',  '<=', $today)
+                                           ->where('check_out', '>',  $today);
+                                    })
+                                    // reserved: future
+                                    ->orWhere('check_in', '>', $today);
+                                })
+                                ->orderBy('check_in')
+                                ->first();
+                        }
+                    @endphp
                     <tr>
                         <td class="fw-bold">{{ $room->room_number }}</td>
                         <td><span class="badge text-bg-primary">{{ ucfirst($room->type) }}</span></td>
@@ -105,6 +125,17 @@
                                 };
                             @endphp
                             <span class="badge text-bg-{{ $statusColor }}">{{ $statusLabel }}</span>
+
+                            {{-- Bouton "Voir" uniquement si occupée ou réservée --}}
+                            @if(in_array($room->status, ['occupied', 'reserved']) && $activeReservation)
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-{{ $statusColor }} ms-1 py-0 px-1"
+                                        title="Voir la réservation en cours"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalReservation{{ $activeReservation->id }}">
+                                    <i class="bi bi-eye-fill"></i>
+                                </button>
+                            @endif
                         </td>
                         <td class="fw-semibold text-primary">{{ number_format($room->price_per_night, 0, ',', ' ') }} Ar</td>
                         <td>
@@ -146,6 +177,123 @@
 
 </div>
 
+@foreach($rooms as $room)
+    @if(in_array($room->status, ['occupied', 'reserved']))
+        @php
+            $today = now()->toDateString();
+            $res = $room->reservations()
+                ->with('client')
+                ->whereNotIn('status', ['cancelled', 'checked_out'])
+                ->where(function($q) use ($today) {
+                    $q->where(function($q2) use ($today) {
+                        $q2->where('check_in',  '<=', $today)
+                           ->where('check_out', '>',  $today);
+                    })->orWhere('check_in', '>', $today);
+                })
+                ->orderBy('check_in')
+                ->first();
+        @endphp
+        @if($res)
+        <div class="modal fade" id="modalReservation{{ $res->id }}" tabindex="-1"
+             aria-labelledby="modalLabel{{ $res->id }}" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow">
+
+                    <div class="modal-header
+                        {{ $room->status === 'occupied' ? 'bg-danger text-white' : 'bg-info text-white' }}">
+                        <h5 class="modal-title" id="modalLabel{{ $res->id }}">
+                            <i class="bi bi-calendar2-check me-2"></i>
+                            Réservation #{{ $res->id }} — Chambre {{ $room->room_number }}
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+
+                    <div class="modal-body">
+
+                        {{-- Statut badge --}}
+                        <div class="mb-3 text-center">
+                            @php
+                                $resStatusColor = match($res->status) {
+                                    'confirmed'  => 'success',
+                                    'checked_in' => 'primary',
+                                    'paid'       => 'success',
+                                    'partial'    => 'warning',
+                                    'pending'    => 'warning',
+                                    default      => 'secondary',
+                                };
+                                $resStatusLabel = [
+                                    'confirmed'  => 'Confirmée',
+                                    'checked_in' => 'Checked in',
+                                    'paid'       => 'Payée',
+                                    'partial'    => 'Partiel',
+                                    'pending'    => 'En attente',
+                                ][$res->status] ?? ucfirst($res->status);
+                            @endphp
+                            <span class="badge text-bg-{{ $resStatusColor }} fs-6 px-3 py-2">
+                                {{ $resStatusLabel }}
+                            </span>
+                        </div>
+
+                        <dl class="row mb-0">
+                            {{-- Client --}}
+                            <dt class="col-5 text-muted"><i class="bi bi-person me-1"></i> Client</dt>
+                            <dd class="col-7 fw-semibold">
+                                {{ $res->client->first_name }} {{ $res->client->last_name }}
+                                @if($res->client->phone)
+                                    <br><small class="text-muted fw-normal">{{ $res->client->phone }}</small>
+                                @endif
+                            </dd>
+
+                            {{-- Dates --}}
+                            <dt class="col-5 text-muted"><i class="bi bi-box-arrow-in-right me-1"></i> Arrivée</dt>
+                            <dd class="col-7">{{ \Carbon\Carbon::parse($res->check_in)->format('d/m/Y') }}</dd>
+
+                            <dt class="col-5 text-muted"><i class="bi bi-box-arrow-right me-1"></i> Départ</dt>
+                            <dd class="col-7">{{ \Carbon\Carbon::parse($res->check_out)->format('d/m/Y') }}</dd>
+
+                            {{-- Durée --}}
+                            @php
+                                $nights = \Carbon\Carbon::parse($res->check_in)
+                                    ->diffInDays(\Carbon\Carbon::parse($res->check_out));
+                            @endphp
+                            <dt class="col-5 text-muted"><i class="bi bi-moon me-1"></i> Durée</dt>
+                            <dd class="col-7">{{ $nights }} nuit{{ $nights > 1 ? 's' : '' }}</dd>
+
+                            {{-- Personnes --}}
+                            <dt class="col-5 text-muted"><i class="bi bi-people me-1"></i> Personnes</dt>
+                            <dd class="col-7">{{ $res->number_of_guests }}</dd>
+
+                            {{-- Montant --}}
+                            <dt class="col-5 text-muted"><i class="bi bi-cash me-1"></i> Montant</dt>
+                            <dd class="col-7 fw-semibold text-primary">
+                                {{ number_format($res->total_price, 0, ',', ' ') }} MGA
+                            </dd>
+
+                            {{-- Remarques --}}
+                            @if($res->special_requests)
+                            <dt class="col-5 text-muted"><i class="bi bi-chat-left-text me-1"></i> Remarques</dt>
+                            <dd class="col-7 fst-italic text-muted">{{ $res->special_requests }}</dd>
+                            @endif
+                        </dl>
+                    </div>
+
+                    <div class="modal-footer border-0 pt-0">
+                        <a href="{{ route('reservations.show', $res) }}"
+                           class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-eye me-1"></i> Détail complet
+                        </a>
+                        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">
+                            Fermer
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+        @endif
+    @endif
+@endforeach
+
 @if(session('success'))
 <div class="toast-container position-fixed bottom-0 end-0 p-3">
     <div class="toast show align-items-center text-bg-success border-0" role="alert">
@@ -157,4 +305,3 @@
 </div>
 @endif
 @endsection
-

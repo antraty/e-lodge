@@ -13,7 +13,7 @@ class RoomController extends Controller
         $query = Room::orderByRaw('LENGTH(room_number), room_number');
 
         if ($search = $request->input('search')) {
-            $query->where('LENGTH(room_number), room_number', 'like', '%' . $search . '%');
+            $query->where('room_number', 'like', '%' . $search . '%');
         }
         if ($type = $request->input('type')) {
             $query->where('type', $type);
@@ -39,8 +39,6 @@ class RoomController extends Controller
             'type'            => 'required|in:single,double,suite,deluxe',
             'capacity'        => 'required|integer|min:1',
             'price_per_night' => 'required|numeric|min:0',
-            // En création, seuls available et maintenance sont pertinents
-            // reserved/occupied sont gérés automatiquement par syncStatus()
             'status'          => 'required|in:available,maintenance',
             'description'     => 'nullable|string',
         ]);
@@ -69,15 +67,11 @@ class RoomController extends Controller
             'type'            => 'required|in:single,double,suite,deluxe',
             'capacity'        => 'required|integer|min:1',
             'price_per_night' => 'required|numeric|min:0',
-            // L'admin peut forcer maintenance ; les autres statuts sont auto
             'status'          => 'required|in:available,reserved,occupied,maintenance',
             'description'     => 'nullable|string',
         ]);
 
         $room->update($data);
-
-        // Si l'admin ne met pas en maintenance, on resynchronise pour
-        // éviter qu'il force un statut incohérent avec les réservations
         if ($data['status'] !== 'maintenance') {
             $room->syncStatus();
         }
