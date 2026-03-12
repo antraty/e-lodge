@@ -14,16 +14,14 @@ Route::get('/', function () {
     return redirect()->route('dashboard');
 });
 
-// Routes d'authentification (administrateur)
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login')->middleware('guest');
 Route::post('/login', [AuthController::class, 'login'])->middleware('guest');
 
-// Routes protégées (authentifiées)
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/admin/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
-    // Gestion des chambres
+  
     Route::resource('rooms', App\Http\Controllers\RoomController::class)->except(['show']);
     Route::post('rooms/check-availability', [App\Http\Controllers\RoomController::class, 'checkAvailability'])->name('rooms.checkAvailability');
     
@@ -32,20 +30,16 @@ Route::middleware('auth')->group(function () {
     Route::get('api/clients/search', [ClientController::class, 'search'])
         ->name('clients.search');
     
-        // Gestion des clients
+    // Gestion des clients
     Route::resource('clients', App\Http\Controllers\ClientController::class)->except(['show']);
     
-    
     // Gestion des réservations
-    // history route must be declared BEFORE the resource so /reservations/history is not captured by {reservation}
     Route::get('reservations/history', [App\Http\Controllers\ReservationController::class, 'history'])->name('reservations.history');
     Route::resource('reservations', App\Http\Controllers\ReservationController::class)->whereNumber('reservation');
     // Invoice PDF for reservation
     Route::get('reservations/{reservation}/invoice', [App\Http\Controllers\ReservationController::class, 'invoice'])->name('reservations.invoice');
     
     // Gestion des paiements
-    // history route must be declared before the resource so that /payments/history
-    // is not captured by the {payment} wildcard of the resource show route.
     Route::get('payments/history', [PaymentController::class, 'history'])->name('payments.history');
     Route::resource('payments', PaymentController::class)
         ->only(['index','create','store','show','destroy'])

@@ -103,26 +103,4 @@ class RoomController extends Controller
 
         return redirect()->route('rooms.index')->with('success', 'Chambre supprimée.');
     }
-
-    /**
-     * Vérifier la disponibilité d'une chambre entre deux dates
-     */
-    public function checkAvailability(Request $request)
-    {
-        $data = $request->validate([
-            'room_id'   => 'required|exists:rooms,id',
-            'check_in'  => 'required|date',
-            'check_out' => 'required|date|after:check_in',
-        ]);
-
-        $overlap = Reservation::where('room_id', $data['room_id'])
-            ->where(function ($q) use ($data) {
-                $q->where('check_in', '<', $data['check_out'])
-                  ->where('check_out', '>', $data['check_in']);
-            })
-            ->whereNotIn('status', ['cancelled', 'checked_out'])
-            ->exists();
-
-        return response()->json(['available' => !$overlap]);
-    }
 }
